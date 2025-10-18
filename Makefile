@@ -38,6 +38,9 @@ DATA		:=	data
 INCLUDES	:=	include
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(BUILD)
+APP_TITLE       :=      Slider_check
+APP_DESCRIPTION :=      Homebrew app to test your volume and 3d slider
+APP_AUTHOR      :=      Malick1160
 #ROMFS		:=	romfs
 #GFXBUILD	:=	$(ROMFS)/gfx
 

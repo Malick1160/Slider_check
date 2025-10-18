@@ -1,55 +1,52 @@
 #include <stdio.h>
 #include <string.h>
 #include <3ds.h>
+#include <unistd.h>
 
 
 int main(int argc, char * argv[])
 {
+	
+	unsigned char i2c_3dslider, i2c_volslider;
+	Result res_3d, res_vol, mcu_init;
 
 	gfxInitDefault(); //init services 
-	mcuHwcInit();
-	
-	//define and init variables 
-	unsigned char pos_volslider, oldvolslider, pos_3dslider, old3dslider, i2c_3dslider, i2c_volslider, old_i2c_volslider, old_i2c_3dslider;
-
-	old3dslider = 0;
-	oldvolslider = 0;
-	pos_3dslider = 0;
-	pos_volslider = 0;
-	i2c_3dslider = 0;
-	i2c_volslider = 0;
-	old_i2c_3dslider = 0;
-	old_i2c_volslider = 0;
+	mcu_init = mcuHwcInit();
 
 	consoleInit(GFX_TOP, NULL);
 
 	while (aptMainLoop())
 	{
+		
+		if (R_FAILED(mcu_init)) {//mcuHcInit can fail due to old luma or *hax setup and in that case we immediately stop the program to prevent unintended effects
+			printf("mcuHwcInit Failed! (outdated setup?)");
+			sleep(20);
+			break;
+		}
+
+		res_vol = MCUHWC_ReadRegister(0x27, &i2c_volslider, 1);//get raw volume slider position from mcu reg
+		res_3d = MCUHWC_ReadRegister(0x8, &i2c_3dslider, 1);//get raw 3d slider position from mcu reg
+
+
+		if (R_FAILED(res_vol)) {//if it somehow fails to read volume slider from MCU, very bad if it happens
+			printf("Failed to read volume slider data!\n\n(How did this happen?)\n\nCode: 0x%08lX", res_vol);
+			sleep(20);
+			break;
+		}
+
+		if (R_FAILED(res_3d)) {//if it somehow fails to read 3d slider from MCU, very bad if it happens
+			printf("Failed to read 3D slider data!\n\n(How did this happen?)\n\nCode: 0x%08lX", res_3d);
+			sleep(20);
+			break;
+		}
+
+		printf("Welcome to Slider_check! Hold START to quit.\n\ni2c Volume(Raw Value): %3u %02X \e[K\r\n\n" "i2c 3d(Raw Value): %3u %02X \e[K\r\e[5A", i2c_volslider, i2c_volslider, i2c_3dslider, i2c_3dslider);
+		
 		hidScanInput();//quit by holding start
 
 		u32 kDown = hidKeysDown();
 		if (kDown & KEY_START)
 			break;
-
-		MCUHWC_Get3dSliderLevel(&pos_3dslider);
-		MCUHWC_GetSoundSliderLevel(&pos_volslider);
-		MCUHWC_ReadRegister(0x27, &i2c_volslider, 1);//get raw volume slider pos from mcu reg
-		MCUHWC_ReadRegister(0x8, &i2c_3dslider, 1);//get raw 3d slider pos from mcu reg
-
-		//update printf only if registered values are different from old ones
-		if (old3dslider != pos_3dslider || oldvolslider != pos_volslider || old_i2c_3dslider != i2c_3dslider || old_i2c_volslider != i2c_volslider) {
-
-			printf("\n\033[5A\033[2K\rVolume Slider Position: %u %X\n"
-				"\033[2K\r3d Slider Position : %u %X \n"
-				"\033[2K\ri2c Volume(Raw Value): %u %X\n"
-				"\033[2K\ri2c 3d(Raw Value): %u %X\n",
-				pos_volslider, pos_volslider, pos_3dslider, pos_3dslider, i2c_volslider, i2c_volslider, i2c_3dslider, i2c_3dslider);		
-		}
-		
-		old3dslider = pos_3dslider;
-		oldvolslider = pos_volslider;
-		old_i2c_3dslider = i2c_3dslider;
-		old_i2c_volslider = i2c_volslider;
 
 		gfxFlushBuffers();
 		gfxSwapBuffers();
